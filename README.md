@@ -65,4 +65,4 @@ See `requirements.txt`
 ---
 
 ## Project Website
-[View full project summary ->](WEBSITE LINK HERE)
+[View full project summary ->]([WEBSITE LINK HERE](https://aaliyahvincent.github.io/capstone_dx_prediction)
