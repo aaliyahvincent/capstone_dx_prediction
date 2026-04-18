@@ -32,11 +32,11 @@ To access the data yourself:
 ---
 
 ## Project Structure
-notebooks/
-├── 01_data_exploration.ipynb         # Initial data loading, LOS analysis, early merges
-├── 02_data_preparation.ipynb     # Covers both merging AND the heart failure EDA setup
-├── 03_mimic_dx_prediction_sparse1.ipynb  # Feature building, multi-label architecture setup and evaluation functions
-└── 04_mimic_dx_prediction_sparse_with_clustering.ipynb        # DxTabNet, training, Top-K eval, clustering
+Notebooks:
+01_data_exploration.ipynb         # Initial data loading, LOS analysis, early merges
+02_data_preparation.ipynb     # Covers both merging AND the heart failure EDA setup
+03_mimic_dx_prediction_sparse1.ipynb  # Feature building, multi-label architecture setup and evaluation functions
+04_mimic_dx_prediction_sparse_with_clustering.ipynb        # DxTabNet, training, Top-K eval, clustering
 ---
 
 ## How to Reproduce
