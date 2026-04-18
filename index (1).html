@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Predicting Next-Visit Diagnoses | Aaliyah Vincent</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0f1a;
+  --bg2: #111827;
+  --bg3: #1a2235;
+  --card: #151c2c;
+  --card2: #1e2a3f;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #e8eaf0;
+  --text2: #9ba8be;
+  --text3: #6b7a96;
+  --gold: #e8b84b;
+  --gold2: #f5d47e;
+  --gold-dim: rgba(232,184,75,0.15);
+  --gold-glow: rgba(232,184,75,0.08);
+  --teal: #4ecdc4;
+  --teal-dim: rgba(78,205,196,0.12);
+  --red: #e05252;
+  --green: #52c478;
+  --blue: #5b8dee;
+  --serif: 'DM Serif Display', Georgia, serif;
+  --sans: 'DM Sans', system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+/* ── NOISE OVERLAY ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: rgba(11,15,26,0.88);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-brand {
+  font-family: var(--serif);
+  font-size: 1rem;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+}
+.nav-links {
+  display: flex;
+  gap: 0.25rem;
+  list-style: none;
+}
+.nav-links a {
+  color: var(--text3);
+  text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+.nav-links a:hover { color: var(--gold); background: var(--gold-dim); }
+
+/* ── HERO ── */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 100px 2rem 4rem;
+  overflow: hidden;
+}
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 50%, rgba(232,184,75,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 80% 20%, rgba(78,205,196,0.03) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 60% 80%, rgba(91,141,238,0.04) 0%, transparent 60%);
+  pointer-events: none;
+}
+.hero-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--gold-dim);
+  border: 1px solid rgba(232,184,75,0.25);
+  color: var(--gold2);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.9rem;
+  border-radius: 20px;
+  margin-bottom: 1.75rem;
+  animation: fadeUp 0.6s ease both;
+}
+.hero-badge::before {
+  content: '';
+  width: 6px; height: 6px;
+  background: var(--gold);
+  border-radius: 50%;
+  animation: pulse 2s ease infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+.hero h1 {
+  font-family: var(--serif);
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1.1;
+  color: var(--text);
+  max-width: 800px;
+  margin-bottom: 1.5rem;
+  animation: fadeUp 0.6s 0.1s ease both;
+}
+.hero h1 em {
+  font-style: italic;
+  color: var(--gold);
+}
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  animation: fadeUp 0.6s 0.2s ease both;
+}
+.hero-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.hero-meta-item .label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+.hero-meta-item .value {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--text2);
+}
+.hero-desc {
+  font-size: 1.1rem;
+  color: var(--text2);
+  max-width: 640px;
+  line-height: 1.75;
+  margin-bottom: 2.5rem;
+  font-weight: 300;
+  animation: fadeUp 0.6s 0.3s ease both;
+}
+.hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+  animation: fadeUp 0.6s 0.4s ease both;
+}
+.stat-pill {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  text-align: center;
+  min-width: 130px;
+}
+.stat-pill .num {
+  font-family: var(--serif);
+  font-size: 1.9rem;
+  color: var(--gold);
+  line-height: 1;
+  display: block;
+}
+.stat-pill .desc {
+  font-size: 0.72rem;
+  color: var(--text3);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  margin-top: 0.3rem;
+  display: block;
+}
+.hero-ctas {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  animation: fadeUp 0.6s 0.5s ease both;
+}
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--gold);
+  color: #0b0f1a;
+  font-weight: 700;
+  font-size: 0.88rem;
+  letter-spacing: 0.04em;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.btn-primary:hover { background: var(--gold2); transform: translateY(-1px); }
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: var(--text2);
+  font-weight: 500;
+  font-size: 0.88rem;
+  letter-spacing: 0.04em;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border2);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.btn-secondary:hover { color: var(--text); border-color: var(--text3); background: var(--card); }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── SECTIONS ── */
+section {
+  padding: 6rem 2rem;
+  position: relative;
+  z-index: 1;
+}
+section:nth-child(even) { background: var(--bg2); }
+.section-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.section-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.section-label::after {
+  content: '';
+  flex: 1;
+  max-width: 60px;
+  height: 1px;
+  background: var(--gold);
+  opacity: 0.4;
+}
+.section-title {
+  font-family: var(--serif);
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  color: var(--text);
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+.section-intro {
+  font-size: 1.05rem;
+  color: var(--text2);
+  max-width: 680px;
+  font-weight: 300;
+  line-height: 1.8;
+  margin-bottom: 3rem;
+}
+
+/* ── CARDS ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.75rem;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.card:hover { border-color: var(--border2); transform: translateY(-2px); }
+.card-gold { border-left: 3px solid var(--gold); }
+.card-teal { border-left: 3px solid var(--teal); }
+
+/* ── OVERVIEW ── */
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 3rem;
+}
+.overview-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+.overview-card .icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+}
+.overview-card .icon.gold { background: var(--gold-dim); }
+.overview-card .icon.teal { background: var(--teal-dim); }
+.overview-card .icon.blue { background: rgba(91,141,238,0.12); }
+.overview-card h3 {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+.overview-card p {
+  font-size: 0.9rem;
+  color: var(--text2);
+  line-height: 1.7;
+  font-weight: 300;
+}
+
+/* ── MOTIVATION HIGHLIGHT ── */
+.motivation-highlight {
+  background: linear-gradient(135deg, rgba(232,184,75,0.06) 0%, rgba(78,205,196,0.04) 100%);
+  border: 1px solid rgba(232,184,75,0.2);
+  border-radius: 16px;
+  padding: 2.5rem;
+  margin-bottom: 2.5rem;
+}
+.motivation-highlight .big-stat {
+  font-family: var(--serif);
+  font-size: 3.5rem;
+  color: var(--gold);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+.motivation-highlight p {
+  font-size: 1rem;
+  color: var(--text2);
+  font-weight: 300;
+  max-width: 560px;
+}
+
+/* ── PRIOR ART ── */
+.challenge-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+@media (max-width: 640px) { .challenge-grid { grid-template-columns: 1fr; } }
+.challenge-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.challenge-item .badge {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 0.1rem;
+}
+.badge-warn { background: rgba(224,82,82,0.15); color: var(--red); }
+.badge-ok { background: rgba(82,196,120,0.15); color: var(--green); }
+.challenge-item h4 { font-size: 0.92rem; font-weight: 600; color: var(--text); margin-bottom: 0.25rem; }
+.challenge-item p { font-size: 0.85rem; color: var(--text2); line-height: 1.65; font-weight: 300; }
+
+/* ── DATA ── */
+.data-tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+.data-table-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+.data-table-card .table-name {
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  color: var(--teal);
+  background: var(--teal-dim);
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 0.75rem;
+}
+.data-table-card h4 { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+.data-table-card p { font-size: 0.82rem; color: var(--text2); line-height: 1.6; font-weight: 300; }
+.data-table-card .count {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  color: var(--gold);
+  margin-top: 0.5rem;
+  display: block;
+}
+
+.pivot-box {
+  background: linear-gradient(135deg, rgba(91,141,238,0.06) 0%, rgba(232,184,75,0.04) 100%);
+  border: 1px solid rgba(91,141,238,0.2);
+  border-radius: 14px;
+  padding: 2rem;
+  margin-top: 2rem;
+}
+.pivot-box .pivot-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-bottom: 0.75rem;
+}
+.pivot-box h3 { font-family: var(--serif); font-size: 1.2rem; color: var(--text); margin-bottom: 0.75rem; }
+.pivot-box p { font-size: 0.92rem; color: var(--text2); line-height: 1.75; font-weight: 300; }
+
+/* ── METHODS ── */
+.methods-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+@media (max-width: 700px) { .methods-grid { grid-template-columns: 1fr; } }
+
+.arch-diagram {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 2rem;
+  margin-top: 2rem;
+}
+.arch-diagram h3 {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  color: var(--text);
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+.arch-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.arch-node {
+  background: var(--card2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  min-width: 110px;
+}
+.arch-node.highlight {
+  background: var(--gold-dim);
+  border-color: rgba(232,184,75,0.35);
+  color: var(--gold2);
+}
+.arch-node.teal-node {
+  background: var(--teal-dim);
+  border-color: rgba(78,205,196,0.3);
+  color: var(--teal);
+}
+.arch-node span {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: var(--text3);
+  margin-top: 0.2rem;
+}
+.arch-arrow {
+  color: var(--text3);
+  font-size: 1.1rem;
+}
+.arch-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+/* ── RESULTS ── */
+.results-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+@media (max-width: 700px) { .results-hero { grid-template-columns: 1fr; } }
+
+.headline-result {
+  background: linear-gradient(135deg, rgba(232,184,75,0.1) 0%, rgba(232,184,75,0.03) 100%);
+  border: 1px solid rgba(232,184,75,0.3);
+  border-radius: 16px;
+  padding: 2.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.headline-result .big {
+  font-family: var(--serif);
+  font-size: 4.5rem;
+  color: var(--gold);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+.headline-result .label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text2);
+  margin-bottom: 0.75rem;
+}
+.headline-result .sub {
+  font-size: 0.88rem;
+  color: var(--text3);
+  max-width: 220px;
+  line-height: 1.6;
+  font-weight: 300;
+}
+
+.metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.metrics-table th {
+  text-align: left;
+  padding: 0.6rem 1rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text3);
+  border-bottom: 1px solid var(--border);
+}
+.metrics-table td {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text2);
+  font-weight: 300;
+}
+.metrics-table tr:last-child td { border-bottom: none; }
+.metrics-table td:nth-child(2) {
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  color: var(--gold);
+  font-weight: 400;
+}
+.metrics-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  margin-top: 2rem;
+}
+.comparison-table th {
+  padding: 0.7rem 1rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  border-bottom: 1px solid var(--border);
+  font-weight: 700;
+}
+.comparison-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+  font-weight: 300;
+}
+.comparison-table tr:last-child td { border-bottom: none; }
+.comparison-table .winner { color: var(--gold); font-weight: 600; }
+.comparison-table .loser { color: var(--text3); }
+.comparison-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* ── CHART FIGURES ── */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+@media (max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } }
+.chart-grid.single { grid-template-columns: 1fr; }
+.chart-figure {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.chart-figure img {
+  width: 100%;
+  display: block;
+}
+.chart-figure figcaption {
+  padding: 0.9rem 1.25rem;
+  font-size: 0.8rem;
+  color: var(--text3);
+  font-weight: 300;
+  border-top: 1px solid var(--border);
+  line-height: 1.5;
+}
+.chart-figure figcaption strong { color: var(--text2); font-weight: 500; }
+
+/* ── BURDEN TABLE ── */
+.burden-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin: 2rem 0;
+}
+@media (max-width: 700px) { .burden-grid { grid-template-columns: repeat(2, 1fr); } }
+.burden-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  text-align: center;
+}
+.burden-card .group {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 0.4rem;
+}
+.burden-card .range {
+  font-size: 0.82rem;
+  color: var(--text2);
+  margin-bottom: 0.75rem;
+}
+.burden-card .score {
+  font-family: var(--serif);
+  font-size: 2rem;
+  line-height: 1;
+}
+.burden-card.low .score { color: var(--red); }
+.burden-card.mod .score { color: #e0a052; }
+.burden-card.high .score { color: #90c060; }
+.burden-card.vhigh .score { color: var(--green); }
+.burden-card .metric-name {
+  font-size: 0.68rem;
+  color: var(--text3);
+  margin-top: 0.25rem;
+}
+
+/* ── CLUSTERS ── */
+.cluster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 2rem 0;
+}
+.cluster-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+.cluster-card .cluster-num {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 0.35rem;
+}
+.cluster-card h4 {
+  font-family: var(--serif);
+  font-size: 1rem;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+.cluster-card .age { font-size: 0.82rem; color: var(--text3); margin-bottom: 0.5rem; }
+.cluster-card .recall {
+  font-family: var(--serif);
+  font-size: 1.6rem;
+  color: var(--teal);
+  margin-bottom: 0.25rem;
+}
+.cluster-card .recall-label { font-size: 0.68rem; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* ── DISCUSSION ── */
+.discussion-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 2.5rem;
+}
+@media (max-width: 800px) { .discussion-grid { grid-template-columns: 1fr; } }
+.discussion-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+.discussion-card .dc-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  display: inline-block;
+}
+.dc-label.conclusions { background: rgba(82,196,120,0.12); color: var(--green); }
+.dc-label.limitations { background: rgba(224,82,82,0.12); color: var(--red); }
+.dc-label.future { background: rgba(91,141,238,0.12); color: var(--blue); }
+.discussion-card h3 { font-family: var(--serif); font-size: 1rem; color: var(--text); margin-bottom: 0.75rem; }
+.discussion-card ul { list-style: none; }
+.discussion-card li {
+  font-size: 0.88rem;
+  color: var(--text2);
+  font-weight: 300;
+  line-height: 1.65;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  padding-left: 1.1rem;
+  position: relative;
+}
+.discussion-card li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--text3);
+  font-size: 0.75rem;
+}
+.discussion-card li:last-child { border-bottom: none; }
+
+/* ── CLINICAL IMPACT ── */
+.impact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 2.5rem;
+}
+@media (max-width: 700px) { .impact-grid { grid-template-columns: 1fr; } }
+.impact-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+.impact-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold), var(--teal));
+}
+.impact-card .impact-num {
+  font-family: var(--serif);
+  font-size: 2.5rem;
+  color: var(--gold);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+.impact-card h4 { font-size: 0.9rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
+.impact-card p { font-size: 0.85rem; color: var(--text2); line-height: 1.65; font-weight: 300; }
+
+/* ── DATA ACCESS ── */
+.access-box {
+  background: linear-gradient(135deg, rgba(224,82,82,0.06) 0%, rgba(232,184,75,0.04) 100%);
+  border: 1px solid rgba(224,82,82,0.2);
+  border-radius: 14px;
+  padding: 2rem;
+  margin: 2rem 0;
+}
+.access-box h3 { font-family: var(--serif); font-size: 1.1rem; color: var(--text); margin-bottom: 0.75rem; }
+.access-box p { font-size: 0.92rem; color: var(--text2); font-weight: 300; line-height: 1.75; margin-bottom: 0.5rem; }
+.access-box a { color: var(--gold); text-decoration: none; }
+.access-box a:hover { text-decoration: underline; }
+
+/* ── RQ GRID ── */
+.rq-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 2.5rem;
+}
+@media (max-width: 640px) { .rq-grid { grid-template-columns: 1fr; } }
+.rq-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.rq-num {
+  font-family: var(--serif);
+  font-size: 1.5rem;
+  color: var(--gold);
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+.rq-card h4 { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 0.3rem; }
+.rq-card p { font-size: 0.83rem; color: var(--text2); font-weight: 300; line-height: 1.6; }
+
+/* ── FOOTER ── */
+footer {
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding: 3rem 2rem;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+footer .footer-name {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+footer p {
+  font-size: 0.85rem;
+  color: var(--text3);
+  font-weight: 300;
+  line-height: 1.7;
+}
+footer a { color: var(--gold); text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+  flex-wrap: wrap;
+}
+.footer-links a {
+  font-size: 0.82rem;
+  color: var(--text3);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: color 0.2s;
+}
+.footer-links a:hover { color: var(--gold); }
+
+/* ── SCROLL REVEAL ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .hero h1 { font-size: 2rem; }
+  .stat-pill .num { font-size: 1.5rem; }
+}
+
+/* ── CODE INLINE ── */
+code {
+  font-family: 'Courier New', monospace;
+  font-size: 0.82em;
+  background: rgba(78,205,196,0.1);
+  color: var(--teal);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+}
+
+/* ── DIVIDER ── */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border2), transparent);
+  margin: 2.5rem 0;
+}
+
+.tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  margin-right: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+.tag-gold { background: var(--gold-dim); color: var(--gold2); }
+.tag-teal { background: var(--teal-dim); color: var(--teal); }
+.tag-blue { background: rgba(91,141,238,0.12); color: var(--blue); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">Aaliyah Vincent — Capstone</div>
+  <ul class="nav-links">
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#data">Data</a></li>
+    <li><a href="#methods">Methods</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#discussion">Discussion</a></li>
+    <li><a href="#github" style="color:var(--gold)">GitHub ↗</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-content">
+    <div class="hero-badge">Biostatistics Data Analytics · Capstone Project</div>
+    <h1>Predicting <em>Next-Visit</em> Diagnoses Using Electronic Health Records</h1>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="label">Author</span>
+        <span class="value">Aaliyah Vincent</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="label">Mentor</span>
+        <span class="value">Dr. Boubakari Ibrahimou</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="label">Dataset</span>
+        <span class="value">MIMIC-IV (PhysioNet)</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="label">Model</span>
+        <span class="value">DxTabNet Neural Network</span>
+      </div>
+    </div>
+    <p class="hero-desc">A custom neural network trained on 100,000+ patients that predicts which diagnoses a returning patient is most likely to receive at their next hospital visit — before they arrive — using only their prior admission history.</p>
+    <div class="hero-stats">
+      <div class="stat-pill">
+        <span class="num">92.7%</span>
+        <span class="desc">Hits@20</span>
+      </div>
+      <div class="stat-pill">
+        <span class="num">100K+</span>
+        <span class="desc">Patients</span>
+      </div>
+      <div class="stat-pill">
+        <span class="num">27,205</span>
+        <span class="desc">Diagnosis Labels</span>
+      </div>
+      <div class="stat-pill">
+        <span class="num">+6pts</span>
+        <span class="desc">vs. Baseline</span>
+      </div>
+    </div>
+    <div class="hero-ctas">
+      <a href="#results" class="btn-primary">View Results ↓</a>
+      <a href="https://github.com/aaliyahvincent/capstone_dx_prediction" target="_blank" class="btn-secondary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        GitHub Repo
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- OVERVIEW -->
+<section id="overview">
+  <div class="section-inner">
+    <div class="section-label reveal">Project Overview</div>
+    <h2 class="section-title reveal">Background &amp; Motivation</h2>
+    <p class="section-intro reveal">Hospital readmissions are one of the most costly and partially preventable challenges in U.S. healthcare. Despite widespread EHR adoption, most hospitals lack tools to anticipate a returning patient's needs before they arrive.</p>
+
+    <div class="motivation-highlight reveal">
+      <div class="big-stat">1 in 4</div>
+      <p>Heart failure patients return to the hospital within 30 days of discharge — a 20–25% 30-day readmission rate that costs the U.S. healthcare system billions annually. Research shows predictive models can reduce these readmissions by 10–20% when effectively implemented.</p>
+    </div>
+
+    <div class="overview-grid reveal">
+      <div class="overview-card">
+        <div class="icon gold">🎯</div>
+        <h3>Goal</h3>
+        <p>Build a machine learning model that predicts which diagnoses a patient is most likely to receive at their <em>next</em> hospital visit, enabling earlier awareness and more targeted care preparation before arrival.</p>
+      </div>
+      <div class="overview-card">
+        <div class="icon teal">📋</div>
+        <h3>Objectives</h3>
+        <p>Train a multi-label neural network on 100,000+ patients across 27,205 possible diagnoses. Evaluate using clinically relevant Top-K metrics. Discover patient subgroups from learned representations.</p>
+      </div>
+      <div class="overview-card">
+        <div class="icon blue">💡</div>
+        <h3>Why It Matters</h3>
+        <p>Earlier diagnosis awareness means faster triage, more efficient bed allocation, more targeted care teams, and pre-populated admission checklists — directly reducing avoidable readmissions.</p>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label reveal">Research Questions</div>
+    <div class="rq-grid reveal">
+      <div class="rq-card">
+        <div class="rq-num">#1</div>
+        <div>
+          <h4>Signal in History</h4>
+          <p>Which aspects of prior admissions — diagnoses, length of stay, prescriptions — best predict next-visit diagnosis?</p>
+        </div>
+      </div>
+      <div class="rq-card">
+        <div class="rq-num">#2</div>
+        <div>
+          <h4>Role of Demographics</h4>
+          <p>How much predictive lift do age, sex, race, and insurance add beyond clinical history alone?</p>
+        </div>
+      </div>
+      <div class="rq-card">
+        <div class="rq-num">#3</div>
+        <div>
+          <h4>Most Predictable Diagnoses</h4>
+          <p>Which diagnosis groups are most predictable from prior admission history, and what clinical patterns explain the difference?</p>
+        </div>
+      </div>
+      <div class="rq-card">
+        <div class="rq-num">#4</div>
+        <div>
+          <h4>Patient Subgroups</h4>
+          <p>Do the model's learned patient embeddings reveal clinically meaningful subgroups with distinct predictability profiles?</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label reveal">Prior Art &amp; Challenges</div>
+    <p class="section-intro reveal" style="margin-bottom:1.5rem;">Prior approaches to clinical event prediction — including Doctor AI (Choi et al., 2017) and RNN-based trajectory models (Tran et al., 2015) — established the value of EHR-based prediction but faced key limitations this project addresses.</p>
+    <div class="challenge-grid reveal">
+      <div class="challenge-item">
+        <div class="badge badge-warn">✗</div>
+        <div>
+          <h4>Limited Label Vocabulary</h4>
+          <p>Prior models typically use hundreds of diagnosis codes. This project operates over the full MIMIC-IV vocabulary of 27,205 unique diagnoses — requiring new approaches to handle extreme label imbalance.</p>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="badge badge-warn">✗</div>
+        <div>
+          <h4>Dense Matrix Bottleneck</h4>
+          <p>Densifying a 100K × 27K diagnosis matrix requires 20GB+ RAM. Prior approaches couldn't scale — this project solves it with sparse CSR matrices and EmbeddingBag layers.</p>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="badge badge-ok">✓</div>
+        <div>
+          <h4>Gated Fusion Architecture</h4>
+          <p>DxTabNet's gated fusion layer learns per-patient weighting between tabular features and diagnosis history — more powerful than simple concatenation or addition used in prior work.</p>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="badge badge-ok">✓</div>
+        <div>
+          <h4>Survivorship Bias Avoided</h4>
+          <p>Original plan using prescription patterns was abandoned when systematic missing data was found for deceased patients. Pivoting to diagnosis data ensured full coverage regardless of patient outcome.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DATA -->
+<section id="data">
+  <div class="section-inner">
+    <div class="section-label reveal">Data</div>
+    <h2 class="section-title reveal">Dataset &amp; Sources</h2>
+    <p class="section-intro reveal">This project uses MIMIC-IV (Medical Information Mart for Intensive Care, v3.1), developed by the MIT Laboratory for Computational Physiology. It contains de-identified data on 200,000+ patients from Beth Israel Deaconess Medical Center in Boston, MA, covering 2008–2019.</p>
+
+    <div class="data-tables reveal">
+      <div class="data-table-card">
+        <span class="table-name">admissions.csv</span>
+        <h4>Inpatient Admissions</h4>
+        <p>Admission/discharge timing, demographics, insurance, language, race, marital status</p>
+        <span class="count">546,028 rows</span>
+      </div>
+      <div class="data-table-card">
+        <span class="table-name">patients.csv</span>
+        <h4>Patient Demographics</h4>
+        <p>Age, gender, date of death per patient — all de-identified per HIPAA Safe Harbor</p>
+        <span class="count">364,627 patients</span>
+      </div>
+      <div class="data-table-card">
+        <span class="table-name">diagnoses_icd.csv</span>
+        <h4>ICD Diagnosis Codes</h4>
+        <p>All diagnosis codes assigned to each admission, merged with readable long titles</p>
+        <span class="count">27,205 unique dx</span>
+      </div>
+      <div class="data-table-card">
+        <span class="table-name">prescriptions.csv</span>
+        <h4>Medications</h4>
+        <p>Drug names, dosages, routes, timing — excluded from modeling due to systematic missingness in deceased patients (survivorship bias)</p>
+        <span class="count">Excluded</span>
+      </div>
+    </div>
+
+    <div class="access-box reveal">
+      <h3>⚠ Data Access Requirements</h3>
+      <p>MIMIC-IV data is de-identified but requires credentialed access. <strong>The raw data files cannot be shared publicly</strong> — this is a condition of the PhysioNet data use agreement signed to access this dataset.</p>
+      <p>To reproduce this project: (1) Create an account at <a href="https://physionet.org" target="_blank">physionet.org</a> · (2) Complete CITI training · (3) Apply for MIMIC-IV credentialed access · (4) Download from <a href="https://physionet.org/content/mimiciv/3.1/" target="_blank">physionet.org/content/mimiciv/3.1/</a> · (5) Run notebooks in order using the provided code.</p>
+    </div>
+
+    <div class="pivot-box reveal">
+      <div class="pivot-label">⟳ Project Pivot</div>
+      <h3>Why Prescriptions Were Dropped</h3>
+      <p>The original plan used the Apriori algorithm to find medication co-occurrence patterns linked to in-hospital mortality. During exploratory analysis, deceased patients were found to have systematically missing prescription records — meaning any pattern found would only reflect survivors. This survivorship bias would have made findings misleading. Diagnosis data had full coverage across all patients regardless of outcome, making it the correct foundation for a forward-looking, reliable prediction task.</p>
+    </div>
+
+    <div class="divider reveal"></div>
+
+    <div class="section-label reveal">EDA Highlights</div>
+    <p class="section-intro reveal" style="margin-bottom:1.5rem;">Exploratory analysis was conducted on a Heart Failure cohort (8,145 patients) as a focused clinical lens before scaling to the full 100,000+ patient model.</p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:2rem;" class="reveal">
+      <div class="stat-pill">
+        <span class="num">8,145</span>
+        <span class="desc">HF Cohort Patients</span>
+      </div>
+      <div class="stat-pill">
+        <span class="num">63.4</span>
+        <span class="desc">Mean Age (years)</span>
+      </div>
+      <div class="stat-pill">
+        <span class="num">53%</span>
+        <span class="desc">Male · 47% Female</span>
+      </div>
+      <div class="stat-pill">
+        <span class="num">4.2</span>
+        <span class="desc">Mean LOS (days)</span>
+      </div>
+    </div>
+
+    <p style="font-size:0.88rem;color:var(--text2);margin-bottom:1rem;font-weight:300;" class="reveal">Top co-occurring diagnoses in HF patients confirmed expected clinical clustering — atrial fibrillation, essential hypertension, hyperlipidemia, and coronary atherosclerosis. Clinically notable: Trazodone and Tramadol appeared in the top 10 prescribed medications, both associated with worse outcomes in HF patients in the clinical literature.</p>
+  </div>
+</section>
+
+<!-- METHODS -->
+<section id="methods">
+  <div class="section-inner">
+    <div class="section-label reveal">Methods &amp; Tools</div>
+    <h2 class="section-title reveal">Feature Engineering &amp; Model Architecture</h2>
+    <p class="section-intro reveal">All features were built exclusively from prior admissions — the most recent admission per patient was designated as the prediction target, with strict two-layer leakage prevention ensuring the model never sees information from the visit it's predicting.</p>
+
+    <div class="methods-grid reveal">
+      <div class="card card-gold">
+        <h3 style="font-family:var(--serif);font-size:1rem;color:var(--text);margin-bottom:0.75rem;">Numerical Aggregates</h3>
+        <p style="font-size:0.85rem;color:var(--text2);font-weight:300;line-height:1.7;">Number of prior admissions · Total hospital days · Average, median, max, min, and standard deviation of length of stay — variability captures patient instability.</p>
+      </div>
+      <div class="card card-teal">
+        <h3 style="font-family:var(--serif);font-size:1rem;color:var(--text);margin-bottom:0.75rem;">Recency &amp; Mode Features</h3>
+        <p style="font-size:0.85rem;color:var(--text2);font-weight:300;line-height:1.7;">Both recent (most recent prior admission) and mode (most common across all priors) versions of categorical features — admission type, insurance, location, provider.</p>
+      </div>
+      <div class="card card-gold">
+        <h3 style="font-family:var(--serif);font-size:1rem;color:var(--text);margin-bottom:0.75rem;">Demographics</h3>
+        <p style="font-size:0.85rem;color:var(--text2);font-weight:300;line-height:1.7;">Age, race, gender. Age provided the most meaningful lift — older patients have more chronic conditions with predictable patterns. Race and language added minimal individual lift.</p>
+      </div>
+      <div class="card card-teal">
+        <h3 style="font-family:var(--serif);font-size:1rem;color:var(--text);margin-bottom:0.75rem;">Diagnosis History (Key Feature)</h3>
+        <p style="font-size:0.85rem;color:var(--text2);font-weight:300;line-height:1.7;">Sparse CSR matrix: 100,101 patients × 27,205 diagnosis columns, with frequency counts per prior diagnosis. Stored sparse to avoid 20GB RAM requirement of dense format.</p>
+      </div>
+    </div>
+
+    <div class="arch-diagram reveal">
+      <h3>DxTabNet Architecture</h3>
+      <div class="arch-row">
+        <div class="arch-node">Tabular Features<span>4,961 columns</span></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">Dense MLP Tower<span>512 → 256</span></div>
+        <div class="arch-arrow" style="opacity:0.3">·</div>
+        <div class="arch-node">Diagnosis History<span>27,205 sparse</span></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node teal-node">EmbeddingBag<span>Learned dim 128</span></div>
+      </div>
+      <div class="arch-row" style="margin-top:0.5rem;">
+        <div style="text-align:center;width:100%;">
+          <div class="arch-arrow" style="font-size:1.4rem;">↓&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓</div>
+        </div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-node highlight">Gated Fusion Layer<span>Learned per-patient weighting</span></div>
+      </div>
+      <div class="arch-row" style="margin-top:0.5rem;">
+        <div style="text-align:center;width:100%;"><div class="arch-arrow" style="font-size:1.4rem;">↓</div></div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-node">256-dim Patient Representation</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node teal-node">Output Layer<span>27,205 sigmoid nodes</span></div>
+      </div>
+      <p style="text-align:center;font-size:0.78rem;color:var(--text3);margin-top:1.25rem;">Each output node = independent binary prediction for one diagnosis · BCEWithLogitsLoss + positive weighting (cap=20×) to handle extreme label imbalance</p>
+    </div>
+
+    <div class="divider reveal"></div>
+
+    <div class="section-label reveal">Model Comparison</div>
+    <div style="overflow-x:auto;" class="reveal">
+      <table class="comparison-table">
+        <thead>
+          <tr style="background:var(--card);">
+            <th>Feature</th>
+            <th>Sparse Neural Network (Baseline)</th>
+            <th>DxTabNet (Final)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="color:var(--text2);">Diagnosis Input</td>
+            <td class="loser">Dense linear projection</td>
+            <td class="winner">EmbeddingBag (learned)</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text2);">Fusion Method</td>
+            <td class="loser">Element-wise addition</td>
+            <td class="winner">Gated fusion (adaptive)</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text2);">Hits@5</td>
+            <td class="loser">0.710</td>
+            <td class="winner">0.821 (+11.1pts)</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text2);">Hits@10</td>
+            <td class="loser">0.793</td>
+            <td class="winner">0.886 (+9.3pts)</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text2);">Hits@20</td>
+            <td class="loser">0.867</td>
+            <td class="winner">0.927 (+6.0pts)</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text2);">Hits@30</td>
+            <td class="loser">0.895</td>
+            <td class="winner">0.944 (+4.9pts)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:2rem;" class="reveal">
+      <div class="section-label" style="margin-bottom:1rem;">Tools &amp; Environment</div>
+      <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+        <span class="tag tag-teal">Python 3</span>
+        <span class="tag tag-teal">PyTorch</span>
+        <span class="tag tag-teal">scikit-learn</span>
+        <span class="tag tag-teal">pandas / NumPy</span>
+        <span class="tag tag-teal">scipy.sparse</span>
+        <span class="tag tag-gold">Google Colab A100 GPU</span>
+        <span class="tag tag-gold">MIMIC-IV v3.1</span>
+        <span class="tag tag-blue">matplotlib / seaborn</span>
+      </div>
+    </div>
+
+    <div class="divider reveal"></div>
+    <div class="section-label reveal">Data Split Strategy</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1rem;" class="reveal">
+      <div class="stat-pill">
+        <span class="num">72,072</span>
+        <span class="desc">Training (72%)</span>
+      </div>
+      <div class="stat-pill">
+        <span class="num">8,008</span>
+        <span class="desc">Validation (8%)</span>
+      </div>
+      <div class="stat-pill">
+        <span class="num">20,021</span>
+        <span class="desc">Test (20%)</span>
+      </div>
+    </div>
+    <p style="font-size:0.85rem;color:var(--text3);margin-top:1rem;font-weight:300;" class="reveal">Patient-level split — the same patient never appears in both training and test sets. Within each patient, the most recent admission is the prediction target; all prior admissions become features.</p>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<section id="results">
+  <div class="section-inner">
+    <div class="section-label reveal">Results</div>
+    <h2 class="section-title reveal">Model Performance</h2>
+    <p class="section-intro reveal">DxTabNet was evaluated using Top-K metrics — the clinically relevant measure of whether the correct diagnosis appeared in the model's ranked shortlist. With 27,205 possible labels, standard accuracy is meaningless; Top-K reflects how the tool would actually be used.</p>
+
+    <div class="results-hero reveal">
+      <div class="headline-result">
+        <span class="big">92.7%</span>
+        <span class="label">Hits@20</span>
+        <span class="sub">In 9 out of 10 patient arrivals, at least one correct diagnosis appeared in the top-20 shortlist — before examination, purely from prior records</span>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table class="metrics-table">
+          <thead><tr><th>Metric</th><th>Score</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>Hits@5</td><td>0.821</td><td style="font-size:0.8rem;color:var(--text3);">Strictest threshold</td></tr>
+            <tr><td>Hits@10</td><td>0.886</td><td style="font-size:0.8rem;color:var(--text3);">Half-list shortlist</td></tr>
+            <tr><td>Hits@20</td><td>0.927</td><td style="font-size:0.8rem;color:var(--text3);">Primary metric</td></tr>
+            <tr><td>Hits@30</td><td>0.944</td><td style="font-size:0.8rem;color:var(--text3);">Extended list</td></tr>
+            <tr><td>F1 Micro</td><td>0.227</td><td style="font-size:0.8rem;color:var(--text3);">Threshold t=0.59</td></tr>
+            <tr><td>Recall Micro</td><td>0.318</td><td style="font-size:0.8rem;color:var(--text3);">Threshold t=0.59</td></tr>
+            <tr><td>Precision Micro</td><td>0.176</td><td style="font-size:0.8rem;color:var(--text3);">Threshold t=0.59</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Chart: Training Loss -->
+    <div class="chart-grid single reveal">
+      <figure class="chart-figure">
+        <img src="images/training_loss.png" alt="Training Loss over Epochs">
+        <figcaption><strong>Training Loss over 200 Epochs.</strong> Loss drops from 0.68 (random baseline) to 0.0099, converging cleanly with no instability. Positive weighting forces the model to learn rare diagnoses rather than defaulting to "absent."</figcaption>
+      </figure>
+    </div>
+
+    <!-- Chart: Top-K Evaluation -->
+    <div class="chart-grid single reveal">
+      <figure class="chart-figure">
+        <img src="images/topk_metrics.png" alt="Top-K Evaluation Metrics">
+        <figcaption><strong>Top-K Evaluation Metrics across K=5, 10, 20, 30.</strong> Hits@K (green) climbs consistently — the model surfaces at least one correct diagnosis in the shortlist for the vast majority of patients at every K value tested.</figcaption>
+      </figure>
+    </div>
+
+    <!-- Charts: Per-patient quality + coverage -->
+    <div class="chart-grid reveal">
+      <figure class="chart-figure">
+        <img src="images/per_patient_quality.png" alt="Per-Patient Prediction Quality">
+        <figcaption><strong>Per-Patient Prediction Quality.</strong> Precision@20 mean=0.18, Recall@20 mean=0.30. The Hits@20 bar confirms the vast majority of patients (~17,000+ of 20,021) had at least one correct diagnosis in their shortlist.</figcaption>
+      </figure>
+      <figure class="chart-figure">
+        <img src="images/topk_coverage.png" alt="Top-K Coverage of True Diagnoses">
+        <figcaption><strong>Top-K Coverage.</strong> More diagnoses = more correctly recovered. Avg. 3.66 correct diagnoses recovered in Top-20 per patient; 7.3% of patients had zero correct in the shortlist (irreducible miss rate).</figcaption>
+      </figure>
+    </div>
+
+    <div class="divider reveal"></div>
+
+    <!-- Performance by Burden -->
+    <div class="section-label reveal">Performance by Patient Complexity</div>
+    <p style="font-size:0.92rem;color:var(--text2);font-weight:300;margin-bottom:1.5rem;max-width:680px;" class="reveal">The more complex the patient, the better the model performs. Chronic high-burden patients have rich prior records with strong repeating patterns — exactly what the model was trained to recognize.</p>
+
+    <div class="burden-grid reveal">
+      <div class="burden-card low">
+        <div class="group">Low</div>
+        <div class="range">1–4 diagnoses</div>
+        <div class="score">0.599</div>
+        <div class="metric-name">Hits@20</div>
+      </div>
+      <div class="burden-card mod">
+        <div class="group">Moderate</div>
+        <div class="range">5–9 diagnoses</div>
+        <div class="score">0.825</div>
+        <div class="metric-name">Hits@20</div>
+      </div>
+      <div class="burden-card high">
+        <div class="group">High</div>
+        <div class="range">10–19 diagnoses</div>
+        <div class="score">0.925</div>
+        <div class="metric-name">Hits@20</div>
+      </div>
+      <div class="burden-card vhigh">
+        <div class="group">Very High</div>
+        <div class="range">20+ diagnoses</div>
+        <div class="score">0.965</div>
+        <div class="metric-name">Hits@20</div>
+      </div>
+    </div>
+
+    <div class="chart-grid single reveal">
+      <figure class="chart-figure">
+        <img src="images/burden_performance.png" alt="Performance by Patient Diagnosis Burden">
+        <figcaption><strong>Top-20 Performance by Patient Diagnosis Burden.</strong> A 37-point Hits@20 spread between Low and Very High burden groups. Complex chronic patients are the most "predictable" because their conditions are stable and recurring.</figcaption>
+      </figure>
+    </div>
+
+    <div class="divider reveal"></div>
+
+    <!-- Best & Worst -->
+    <div class="section-label reveal">Best &amp; Worst Predicted Diagnoses</div>
+    <div class="chart-grid reveal">
+      <figure class="chart-figure">
+        <img src="images/top25_actual_captured.png" alt="Top 25 Diagnoses Actual vs Captured">
+        <figcaption><strong>Top 25 Diagnoses — Actual vs. Captured in Top-20.</strong> For most common diagnoses, the captured bar closely tracks the actual bar — the model surfaces a large fraction of the most frequent conditions.</figcaption>
+      </figure>
+      <figure class="chart-figure">
+        <img src="images/best_recalled.png" alt="Top Diagnoses Best Recovered in Top-20">
+        <figcaption><strong>Top 20 Diagnoses Best Recovered (≥50 patients).</strong> Highest Recall@20 scores go to chronic, stable, recurring conditions — atherosclerosis (0.80), hyperlipidemia (0.79), congestive heart failure (0.73).</figcaption>
+      </figure>
+    </div>
+
+    <div class="chart-grid single reveal">
+      <figure class="chart-figure">
+        <img src="images/quality_audit.png" alt="Top-K Quality Audit">
+        <figcaption><strong>Top-K Quality Audit.</strong> Left: diagnoses most often correctly captured. Right: diagnoses most often missed. Acute kidney failure, acidosis, and anemia are episodic events triggered by real-time physiological changes — not visible in prior admission history alone.</figcaption>
+      </figure>
+    </div>
+
+    <div class="divider reveal"></div>
+
+    <!-- Clustering -->
+    <div class="section-label reveal">Patient Subgroup Discovery</div>
+    <p style="font-size:0.92rem;color:var(--text2);font-weight:300;margin-bottom:1.5rem;max-width:680px;" class="reveal">After training, K-means clustering (K=4, selected by silhouette score) was applied to the model's 256-dimensional patient embeddings — grouping patients by what the model learned, without any manual labels.</p>
+
+    <div class="cluster-grid reveal">
+      <div class="cluster-card">
+        <div class="cluster-num">Cluster 0</div>
+        <h4>Cardiac / High Burden</h4>
+        <div class="age">Avg. age 67 · Many comorbidities</div>
+        <div class="recall">0.296</div>
+        <div class="recall-label">Recall@20</div>
+      </div>
+      <div class="cluster-card">
+        <div class="cluster-num">Cluster 1 ⭐ Most Predictable</div>
+        <h4>Maternal / Mental Health</h4>
+        <div class="age">Avg. age 35 · Consistent diagnoses</div>
+        <div class="recall">0.372</div>
+        <div class="recall-label">Recall@20</div>
+      </div>
+      <div class="cluster-card">
+        <div class="cluster-num">Cluster 2</div>
+        <h4>Metabolic / Moderate</h4>
+        <div class="age">Avg. age 55 · Moderate burden</div>
+        <div class="recall">0.367</div>
+        <div class="recall-label">Recall@20</div>
+      </div>
+      <div class="cluster-card">
+        <div class="cluster-num">Cluster 3</div>
+        <h4>HF / Atrial Fibrillation</h4>
+        <div class="age">Avg. age 69 · Cardiac focus</div>
+        <div class="recall">0.324</div>
+        <div class="recall-label">Recall@20</div>
+      </div>
+    </div>
+
+    <div class="chart-grid single reveal">
+      <figure class="chart-figure">
+        <img src="images/clusters_pca.png" alt="Patient Clusters in Learned Embedding Space">
+        <figcaption><strong>Patient Clusters in Learned Embedding Space (PCA View).</strong> Clustering performed in full 256-dim space; 2D PCA captures ~48% of embedding variance for visualization. Four clinically interpretable groups emerged without any labels provided — validating that DxTabNet learned genuine patient structure.</figcaption>
+      </figure>
+    </div>
+
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-top:1.5rem;" class="reveal">
+      <h3 style="font-family:var(--serif);font-size:1rem;color:var(--text);margin-bottom:0.75rem;">Key Insight: Predictability from Consistency, Not Burden</h3>
+      <p style="font-size:0.88rem;color:var(--text2);font-weight:300;line-height:1.75;">Cluster 1 (maternal/mental health, avg age 35) is the most predictable despite having the fewest diagnoses. Maternal outcomes, anxiety, and depression co-occur in highly consistent, visit-to-visit patterns — the model learns a reliable prior for this group. Elderly high-burden clusters are harder to predict not because of poor model performance, but because wide-ranging comorbidities make the prediction space broader and noisier.</p>
+    </div>
+  </div>
+</section>
+
+<!-- DISCUSSION -->
+<section id="discussion">
+  <div class="section-inner">
+    <div class="section-label reveal">Discussion</div>
+    <h2 class="section-title reveal">Interpretation, Impact &amp; Future Work</h2>
+    <p class="section-intro reveal">Results are connected back to the four research questions, then translated into clinical impact, and finally evaluated honestly for limitations and next steps.</p>
+
+    <div class="section-label reveal" style="margin-bottom:1rem;">Answering the Research Questions</div>
+    <div class="rq-grid reveal">
+      <div class="rq-card">
+        <div class="rq-num">#1</div>
+        <div>
+          <h4>Signal in History</h4>
+          <p><strong style="color:var(--green);">Diagnosis history dominated.</strong> ICD code history was the primary predictive signal, consistent with the EmbeddingBag architecture's emphasis. Length of stay and admission patterns added context.</p>
+        </div>
+      </div>
+      <div class="rq-card">
+        <div class="rq-num">#2</div>
+        <div>
+          <h4>Demographics</h4>
+          <p><strong style="color:var(--green);">Modest lift.</strong> Age and insurance contributed meaningfully. Race, gender, and language added minimal individual lift beyond clinical history — diagnosis patterns dominate.</p>
+        </div>
+      </div>
+      <div class="rq-card">
+        <div class="rq-num">#3</div>
+        <div>
+          <h4>Most Predictable</h4>
+          <p><strong style="color:var(--green);">Chronic &gt; Acute.</strong> Stable, recurring conditions (hypertension, hyperlipidemia, atrial fibrillation) are highly predictable. Acute episodic events (AKF, acidosis, sepsis) require real-time data.</p>
+        </div>
+      </div>
+      <div class="rq-card">
+        <div class="rq-num">#4</div>
+        <div>
+          <h4>Patient Subgroups</h4>
+          <p><strong style="color:var(--green);">Yes — 4 clinically interpretable clusters</strong> emerged unsupervised from learned embeddings, with distinct predictability profiles driven by diagnostic consistency.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider reveal"></div>
+
+    <div class="section-label reveal">Clinical Impact</div>
+    <p style="font-size:0.92rem;color:var(--text2);font-weight:300;margin-bottom:1.5rem;max-width:680px;" class="reveal">A Hits@20 rate of 92.7% means that for over 9 in 10 patient arrivals, the model's ranked shortlist already contains at least one correct diagnosis — before the patient is even examined.</p>
+
+    <div class="impact-grid reveal">
+      <div class="impact-card">
+        <div class="impact-num">01</div>
+        <h4>Pre-Populated Admission Checklists</h4>
+        <p>Care teams begin with a ranked shortlist of likely diagnoses, reducing documentation time and risk of missed chronic conditions.</p>
+      </div>
+      <div class="impact-card">
+        <div class="impact-num">02</div>
+        <h4>Proactive Triage Preparation</h4>
+        <p>When the model flags high-acuity diagnoses like heart failure or end-stage renal disease, triage staff can proactively allocate beds and specialists before the patient arrives.</p>
+      </div>
+      <div class="impact-card">
+        <div class="impact-num">03</div>
+        <h4>Readmission Risk Flagging</h4>
+        <p>Patients whose predicted profile matches prior high-acuity admissions can be flagged for closer post-discharge monitoring — targeting the 20–25% HF 30-day readmission rate.</p>
+      </div>
+    </div>
+
+    <div style="background:var(--card);border:1px solid rgba(232,184,75,0.2);border-radius:12px;padding:1.5rem;margin-bottom:2rem;" class="reveal">
+      <p style="font-size:0.9rem;color:var(--text2);font-weight:300;line-height:1.75;"><strong style="color:var(--gold);">Important boundary condition:</strong> This model should be positioned as a decision-support tool, not a replacement for clinical judgment. For acute episodic events — sepsis, acidosis, acute hemorrhagic anemia — real-time lab values and vitals must be incorporated before reliable deployment for those diagnoses. The tool's strength is in chronic condition management.</p>
+    </div>
+
+    <div class="discussion-grid reveal">
+      <div class="discussion-card">
+        <span class="dc-label conclusions">Conclusions</span>
+        <h3>What Was Demonstrated</h3>
+        <ul>
+          <li>DxTabNet achieved Hits@20 = 0.927 — clinically meaningful at population scale</li>
+          <li>Prior diagnosis history alone is sufficient to predict next-visit chronic conditions</li>
+          <li>Gated fusion outperforms simple linear combination</li>
+          <li>Learned embeddings reveal interpretable patient subgroups without supervision</li>
+          <li>Predictability driven by diagnostic consistency, not just disease burden</li>
+        </ul>
+      </div>
+      <div class="discussion-card">
+        <span class="dc-label limitations">Limitations</span>
+        <h3>Honest Assessment</h3>
+        <ul>
+          <li>Random patient-level split — not calendar-year temporal split</li>
+          <li>Single hospital system (BIDMC) — generalizability unknown</li>
+          <li>Acute episodic events require real-time data not modeled here</li>
+          <li>Sequence order of admissions not captured (bag-of-diagnoses approach)</li>
+          <li>Cluster Recall@20 differences are descriptive, not statistically tested</li>
+        </ul>
+      </div>
+      <div class="discussion-card">
+        <span class="dc-label future">Future Work</span>
+        <h3>Next Steps</h3>
+        <ul>
+          <li>Add real-time lab values and vitals as model features</li>
+          <li>Test LSTM / Transformer models to capture admission order</li>
+          <li>Validate on an external hospital dataset</li>
+          <li>Formal ablation study to quantify feature group contributions</li>
+          <li>Fairness audit: per-demographic subgroup performance analysis</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GITHUB -->
+<section id="github" style="padding:4rem 2rem;">
+  <div class="section-inner">
+    <div style="background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:2.5rem;display:flex;flex-wrap:wrap;gap:2rem;align-items:center;justify-content:space-between;" class="reveal">
+      <div>
+        <div class="section-label" style="margin-bottom:0.75rem;">Code &amp; Reproducibility</div>
+        <h2 style="font-family:var(--serif);font-size:1.6rem;color:var(--text);margin-bottom:0.75rem;">View the Full Code on GitHub</h2>
+        <p style="font-size:0.92rem;color:var(--text2);font-weight:300;max-width:500px;line-height:1.75;">All notebooks are available for reproducing results. Data access requires a PhysioNet credentialed account — instructions are provided in the README.</p>
+        <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <span class="tag tag-teal">4 Notebooks</span>
+          <span class="tag tag-gold">Full Pipeline</span>
+          <span class="tag tag-blue">MIMIC-IV Compatible</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.75rem;">
+        <a href="https://github.com/aaliyahvincent/capstone_dx_prediction" target="_blank" class="btn-primary" style="justify-content:center;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub Repository
+        </a>
+        <a href="https://physionet.org/content/mimiciv/3.1/" target="_blank" class="btn-secondary" style="justify-content:center;">MIMIC-IV Data Access ↗</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-name">Aaliyah Vincent</div>
+  <p>Capstone Project · Biostatistics Data Analytics Track<br>
+  Mentor: Dr. Boubakari Ibrahimou · MIMIC-IV Data via PhysioNet</p>
+  <div class="footer-links">
+    <a href="https://github.com/aaliyahvincent/capstone_dx_prediction" target="_blank">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      GitHub
+    </a>
+    <a href="https://physionet.org/content/mimiciv/3.1/" target="_blank">MIMIC-IV Dataset</a>
+    <a href="#overview">Back to Top ↑</a>
+  </div>
+</footer>
+
+<script>
+// Scroll reveal
+const reveals = document.querySelectorAll('.reveal');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.08 });
+reveals.forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
