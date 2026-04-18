@@ -2,7 +2,7 @@
 Predicting next-visit diagnoses using EHR data — MIMIC-IV
 
 **Author:** Aaliyah Vincent  
-**Capstone Mentor:** Dr. Boubakari Ibrahimou  
+**Capstone Mentor:** Dr. Boubakari Ibrahimou & Henry Jartu  
 **Track:** Biostatistics Data Analytics
 
 ---
@@ -32,7 +32,6 @@ To access the data yourself:
 ---
 
 ## Project Structure
-notebooks/
 notebooks/
 ├── 01_data_exploration.ipynb         # Initial data loading, LOS analysis, early merges
 ├── 02_data_preparation.ipynb     # Covers both merging AND the heart failure EDA setup
